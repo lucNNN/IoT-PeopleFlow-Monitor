@@ -1,0 +1,91 @@
+#include "freertos/FreeRTOS.h"
+#include "esp_wifi.h"
+#include "esp_wifi_types.h"
+#include "esp_system.h"
+#include "esp_event.h"
+#include "esp_event_loop.h"
+#include "nvs_flash.h"
+#include "driver/gpio.h"
+
+#define LED_GPIO_PIN                   (12)
+#define WIFI_CHANNEL_SWITCH_INTERVAL  (500)
+#define WIFI_CHANNEL_MAX               (13)
+
+uint8_t channel = 1;
+
+typedef struct {
+  unsigned frame_ctrl:16;
+  unsigned duration_id:16;
+  uint8_t addr1[6]; /* receiver address */
+  uint8_t addr2[6]; /* sender address */
+  uint8_t addr3[6]; /* filtering address */
+  unsigned sequence_ctrl:16;
+  uint8_t addr4[6]; /* optional */
+} wifi_ieee80211_mac_hdr_t;
+
+typedef struct {
+  wifi_ieee80211_mac_hdr_t hdr;
+  uint8_t payload[0]; /* network data ended with 4 bytes csum (CRC32) */
+} wifi_ieee80211_packet_t;
+
+static esp_err_t event_handler(void *ctx, system_event_t *event);
+static void wifi_sniffer_init(void);
+static void wifi_sniffer_packet_handler(void *buff, wifi_promiscuous_pkt_type_t type);
+
+esp_err_t event_handler(void *ctx, system_event_t *event)
+{
+  return ESP_OK;
+}
+
+void wifi_sniffer_init(void)
+{
+  static wifi_country_t wifi_country = {.cc="CN", .schan = 1, .nchan = 13};
+  wifi_init_config_t cfg = WIFI_INIT_CONFIG_DEFAULT();
+  
+  nvs_flash_init();
+  tcpip_adapter_init();
+  ESP_ERROR_CHECK( esp_event_loop_init(event_handler, NULL) );
+  
+  ESP_ERROR_CHECK( esp_wifi_init(&cfg) );
+  ESP_ERROR_CHECK( esp_wifi_set_country(&wifi_country) );
+  ESP_ERROR_CHECK( esp_wifi_set_storage(WIFI_STORAGE_RAM) );
+  ESP_ERROR_CHECK( esp_wifi_set_mode(WIFI_MODE_NULL) );
+  ESP_ERROR_CHECK( esp_wifi_start() );
+  
+  esp_wifi_set_promiscuous(true);
+  esp_wifi_set_promiscuous_rx_cb(&wifi_sniffer_packet_handler);
+}
+
+void wifi_sniffer_packet_handler(void* buff, wifi_promiscuous_pkt_type_t type)
+{
+  if (type != WIFI_PKT_MGMT)
+    return;
+
+  const wifi_promiscuous_pkt_t *ppkt = (wifi_promiscuous_pkt_t *)buff;
+  const wifi_ieee80211_packet_t *ipkt = (wifi_ieee80211_packet_t *)ppkt->payload;
+  const wifi_ieee80211_mac_hdr_t *hdr = &ipkt->hdr;
+
+  printf("%02d\t%02d\t%02x:%02x:%02x:%02x:%02x:%02x\n",
+    ppkt->rx_ctrl.channel,
+    ppkt->rx_ctrl.rssi,
+    /* ADDR2 */
+    hdr->addr2[0],hdr->addr2[1],hdr->addr2[2],
+    hdr->addr2[3],hdr->addr2[4],hdr->addr2[5]
+  );
+}
+
+// the setup function runs once when you press reset or power the board
+void setup() {
+  pinMode(LED_GPIO_PIN, OUTPUT);
+  Serial.begin(115200);
+  wifi_sniffer_init();
+}
+
+// the loop function runs over and over again forever
+void loop() {
+  digitalWrite(LED_GPIO_PIN, !digitalRead(LED_GPIO_PIN));
+  
+  vTaskDelay(WIFI_CHANNEL_SWITCH_INTERVAL / portTICK_PERIOD_MS);
+  esp_wifi_set_channel(channel, WIFI_SECOND_CHAN_NONE);
+  channel = (channel % WIFI_CHANNEL_MAX) + 1;
+}
