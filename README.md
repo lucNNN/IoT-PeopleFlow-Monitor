@@ -21,4 +21,7 @@ People flow detection system using WiFi Probe Request frames and ESP32 microcont
 - Led field deployment at Portland Association (Room 1-206)  
 - Validated 92.5% accuracy by manual traffic counting  
 - Authored cost-benefit analysis report
-[Embedded System Design Course Project.pdf](https://github.com/user-attachments/files/21459159/Embedded.System.Design.Course.Project.pdf)
+[Embedded System Design Course Project.pdf]
+[Embedded System Design Course Project.pdf](https://github.com/user-attachments/files/21460189/Embedded.System.Design.Course.Project.pdf)
+
+
