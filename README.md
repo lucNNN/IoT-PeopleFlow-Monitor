@@ -18,7 +18,7 @@ People flow detection system using WiFi Probe Request frames and ESP32 microcont
 4. Data sent to cloud via MQTT (OneNET)  
 
 ## 📊 My Contributions  
-- Led field deployment at Portland Association (Room 1-206)  
+- Led field deployment at SAST 
 - Validated 92.5% accuracy by manual traffic counting  
 - Authored cost-benefit analysis report
 [Embedded System Design Course Project.pdf]
